@@ -11,13 +11,16 @@ un-covered topic, in strict numeric order 1 → 100. Then rebuild the manifest.
 
 ## Step-by-step
 
-1. **Determine the next topic number `N`.**
-   - List `content/*.md` files that are named `YYYY-MM-DD.md`.
-   - In each, read the first `# ` heading; parse its topic number from the
-     `Topic <num>：...` prefix.
-   - `N = (highest topic number found) + 1`. If `content/` has no lesson files yet,
-     `N = 1`.
+1. **Determine the next topic number `N` from EXISTING CONTENT, not from dates.**
+   - The source of truth for progress is the **topic numbers in the lesson H1 titles**,
+     NOT filenames or how many days have passed.
+   - List `content/*.md` lesson files (named `YYYY-MM-DD.md`). In each, read the first `# `
+     heading and parse its topic number from the `Topic <num>：...` prefix.
+   - `N = (highest topic number found across all files) + 1`. If `content/` has no lesson
+     files yet, `N = 1`.
    - If `N > 100`, the curriculum is complete — write nothing and stop, noting it.
+   - NOTE: the user may run this routine **several times in one day** to learn ahead or to
+     test. So always recompute `N` from existing files — never assume "one topic per day".
 
 2. **Look up topic `N`** in `投资理财学习100Topics.md` (root of repo). Use its title and
    the module it belongs to for context. Read neighboring topics so the lesson connects
@@ -27,16 +30,25 @@ un-covered topic, in strict numeric order 1 → 100. Then rebuild the manifest.
    accuracy matters. Verify concepts, numbers, formulas, and historical facts (use web
    search if available). Explain the underlying "why", not just the "what".
 
-4. **Write the lesson** to `content/<TODAY>.md` where `<TODAY>` is today's date in
-   `YYYY-MM-DD` format (this is the user's local date). Follow the format spec below.
-   - If a file for today already exists, overwrite it (one lesson per day).
+4. **Write the lesson** with a filename derived from the LATEST existing file, NOT from
+   today's real calendar date:
+   - Find the newest lesson file (the max `YYYY-MM-DD` among `content/*.md`).
+   - The new file's date = **that latest date + 1 day**. So the dates form a clean
+     one-per-day sequence regardless of when you actually run: if the newest file is
+     `2026-06-18.md`, the next is `2026-06-19.md`; run again the same day and the one after
+     is `2026-06-20.md`, and so on.
+   - If `content/` has no lesson files yet, use today's local date as the first file.
+   - Filenames stay pure `content/YYYY-MM-DD.md` (no suffixes) and never collide, because
+     each run advances the date by one. The **topic number lives in the H1 title** and is
+     independent of the date — they just advance together (Topic N on the Nth date).
+   - Follow the format spec below.
 
 5. **Validate the quiz JSON parses** before moving on (a broken block silently disables
    the gate). Quick check:
    ```bash
    python3 - <<'PY'
    import re, json, pathlib
-   md = pathlib.Path("content/<TODAY>.md").read_text(encoding="utf-8")
+   md = pathlib.Path("content/<the file you just wrote>").read_text(encoding="utf-8")
    data = json.loads(re.search(r'class="quiz-data">(.*?)</script>', md, re.S).group(1))
    assert len(data) == 5 and all(0 <= q["answer"] < len(q["options"]) for q in data)
    print("quiz OK")
@@ -99,6 +111,7 @@ un-covered topic, in strict numeric order 1 → 100. Then rebuild the manifest.
 ## What NOT to do
 
 - Don't generate more than one topic per run, and don't skip ahead or out of order.
-- Don't rename `投资理财学习100Topics.md` or change the `YYYY-MM-DD.md` naming convention.
+- Don't rename `投资理财学习100Topics.md`. Lesson files must stay named `YYYY-MM-DD.md`
+  (pure date, no suffix) so the manifest picks them up; advance the date by one each run.
 - Don't edit `index.html` / `app.js` / `styles.css` as part of a content run — those are
   the app shell, not content.
