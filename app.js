@@ -165,13 +165,15 @@
     toggleSidebar(false);
     const n = topicNumber(entry.title);
     const prev = manifest.find((e) => topicNumber(e.title) === n - 1);
-    const prevLink = prev ? `<a href="#${prev.date}">前往 Topic ${n - 1}</a>` : "";
+    const prevLink = prev
+      ? `<a class="lock-btn" href="#${prev.date}">← 前往 Topic ${n - 1}</a>`
+      : "";
     els.article.innerHTML =
-      '<div class="welcome">' +
-      '<div class="big">🔒</div>' +
+      '<div class="lock-screen">' +
+      '<div class="lock-badge">🔒</div>' +
       `<h1>本章尚未解锁</h1>` +
-      `<p>请先完成 <strong>Topic ${n - 1}</strong> 并通过其章末自测（答对 ≥ ${Math.round(PASS_RATIO * 100)}%），即可解锁本章。</p>` +
-      `<p>${prevLink}</p>` +
+      `<p>完成 <strong>Topic ${n - 1}</strong> 的章末自测并答对 ≥ ${Math.round(PASS_RATIO * 100)}%，即可解锁本章。</p>` +
+      prevLink +
       "</div>";
   }
 
