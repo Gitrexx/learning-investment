@@ -45,6 +45,16 @@ un-covered topic, in strict numeric order 1 → 139. Then rebuild the manifest.
    - Filenames stay pure `content/YYYY-MM-DD.md` (no suffixes) and never collide, because
      each run advances the date by one. The **topic number lives in the H1 title** and is
      independent of the date — they just advance together (Topic N on the Nth date).
+   - **Decide the content length BEFORE writing, based on how much depth the topic needs
+     to be explained well to the reader.** There is NO fixed line-count target. Judge the
+     topic's size and difficulty: a big/hard topic (e.g. Topic 52 IPO 的运作机制, options &
+     derivatives, portfolio theory) deserves more comprehensive, longer content — take the
+     extra room to build real understanding from first principles, and lean on extra
+     interactive widgets to carry heavy mechanics rather than dumping terms. A small/easy
+     topic can stay at the usual length (~250–300 lines) and that's fine. **When in doubt,
+     the user prefers MORE comprehensive content** — err on the side of depth and thorough
+     explanation over brevity. Only the H1 format, section order, pedagogical arc, and the
+     5-question quiz are fixed; length must flex to fit the topic.
    - Follow the format spec below.
 
 5. **Validate the quiz JSON parses** before moving on (a broken block silently disables
