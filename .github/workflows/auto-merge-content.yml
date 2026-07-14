@@ -1,0 +1,110 @@
+name: Auto-merge content PRs
+
+# Auto-merge a PR into `main` if and only if:
+#   1. It has no merge conflict with `main` (GitHub reports it MERGEABLE), and
+#   2. Its whole diff is one of:
+#        - brand-new files added under `content/` (no modifications, no deletions,
+#          no renames/copies), and/or
+#        - pure line additions to `content/manifest.json` (no lines deleted,
+#          no existing lines modified).
+# When both hold, the PR is merged with rebase + fast-forward.
+# Otherwise the workflow just logs why and exits green (the PR is left for a human).
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Same-repo PRs get a read/write GITHUB_TOKEN with these scopes.
+# (Fork PRs get a read-only token, so they can't be auto-merged — by design.)
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-merge:
+    # Never touch draft PRs.
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Check the diff is content-only additions
+        id: check
+        run: |
+          set -euo pipefail
+
+          # All changed files in the PR, flattened across pages into one JSON array.
+          files="$(gh api --paginate "repos/$REPO/pulls/$PR/files" \
+            --jq '.[] | {filename, status, additions, deletions}' | jq -s '.')"
+
+          echo "Changed files:"
+          echo "$files" | jq -r '.[] | "  \(.status)\t+\(.additions) -\(.deletions)\t\(.filename)"'
+
+          count="$(echo "$files" | jq 'length')"
+          if [ "$count" -eq 0 ]; then
+            echo "No file changes — not eligible."
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no-file-changes" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # A file passes if it is EITHER:
+          #   - status "added" and lives under content/, OR
+          #   - status "modified"/"changed" AND is exactly content/manifest.json with 0 deletions.
+          # Anything else (modification of another file, deletion, rename, copy) fails the whole PR.
+          verdict="$(echo "$files" | jq -c '
+            reduce .[] as $f ({ok:true, reason:"ok"};
+              if .ok == false then .
+              else
+                ($f.status) as $s
+                | if $s == "added" then
+                    if ($f.filename | startswith("content/")) then .
+                    else {ok:false, reason:("added-outside-content:" + $f.filename)} end
+                  elif ($s == "modified" or $s == "changed") then
+                    if ($f.filename == "content/manifest.json" and $f.deletions == 0) then .
+                    else {ok:false, reason:("disallowed-modification:" + $f.filename + "(-" + ($f.deletions|tostring) + ")")} end
+                  else
+                    {ok:false, reason:("disallowed-" + $s + ":" + $f.filename)}
+                  end
+              end)')
+
+          eligible="$(echo "$verdict" | jq -r '.ok')"
+          reason="$(echo "$verdict" | jq -r '.reason')"
+          echo "eligible=$eligible reason=$reason"
+          echo "eligible=$eligible" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+
+      - name: Verify no conflict, then rebase + fast-forward merge
+        if: steps.check.outputs.eligible == 'true'
+        run: |
+          set -euo pipefail
+
+          # GitHub computes mergeability asynchronously; poll until it's known.
+          state="UNKNOWN"
+          for i in $(seq 1 12); do
+            state="$(gh pr view "$PR" --repo "$REPO" --json mergeable --jq '.mergeable')"
+            echo "Attempt $i: mergeable=$state"
+            [ "$state" != "UNKNOWN" ] && break
+            sleep 5
+          done
+
+          if [ "$state" != "MERGEABLE" ]; then
+            echo "PR is not conflict-free (mergeable=$state) — leaving it for a human."
+            exit 0
+          fi
+
+          echo "Eligible and conflict-free — merging with rebase + fast-forward."
+          gh pr merge "$PR" --repo "$REPO" --rebase --delete-branch
+
+      - name: Explain skip
+        if: steps.check.outputs.eligible != 'true'
+        run: |
+          echo "Not auto-merging: diff is not content-only additions."
+          echo "Reason: ${{ steps.check.outputs.reason }}"
