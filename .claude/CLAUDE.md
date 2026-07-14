@@ -61,8 +61,7 @@ un-covered topic, in strict numeric order 1 → 139. Then rebuild the manifest.
 
 6. **Rebuild the manifest:** run `python3 scripts/build_manifest.py`.
 
-7. **Commit & push** to `main` (this triggers the GitHub Actions deploy). Commit message:
-   `Add Topic N: <title>`.
+7. **Commit & push** Commit message: `Add Topic N: <title>`. Then raise a Pull Request to 'main' branch
 
 ## Lesson format spec (IMPORTANT — the site depends on it)
 
