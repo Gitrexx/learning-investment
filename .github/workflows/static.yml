@@ -6,15 +6,11 @@ on:
   push:
     branches: ["main"]
 
-  # Runs when a pull request is merged into the default branch.
-  # A merge done via GITHUB_TOKEN (e.g. the auto-merge workflow) does NOT emit a push
-  # that triggers workflows, so we also deploy off the PR "closed" event — guarded by
-  # `merged == true` on the deploy job below so PRs closed without merging are ignored.
-  pull_request:
-    types: [closed]
-    branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
+  # Run manually from the Actions tab, and — importantly — dispatched by
+  # auto-merge-content.yml right after it merges a content PR. A merge done with the
+  # GITHUB_TOKEN does NOT trigger push/pull_request workflow runs (GitHub suppresses
+  # GITHUB_TOKEN-triggered events to avoid recursion), and workflow_dispatch is exempt
+  # from that suppression, so dispatching this is how auto-merged content gets deployed.
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -32,9 +28,6 @@ concurrency:
 jobs:
   # Single deploy job since we're just deploying
   deploy:
-    # Deploy on direct pushes to main and manual runs; for pull_request events only
-    # when the PR was actually merged (skip PRs closed without merging).
-    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

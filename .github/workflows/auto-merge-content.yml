@@ -3,6 +3,12 @@ name: Auto-merge content PRs
 # Auto-merge a PR into `main` if and only if it has no merge conflict with `main`
 # (GitHub reports it MERGEABLE). When conflict-free, it's merged with rebase +
 # fast-forward. If there's a conflict, the workflow logs it and leaves the PR alone.
+#
+# After merging, we explicitly kick the Pages deploy via `workflow_dispatch`. A merge
+# performed with the GITHUB_TOKEN does NOT create new workflow runs for the resulting
+# push OR pull_request:closed event (GitHub suppresses GITHUB_TOKEN-triggered events to
+# avoid recursion), so static.yml would never fire on its own. `workflow_dispatch` is one
+# of the two events exempt from that suppression, so dispatching it here works.
 
 on:
   pull_request:
@@ -12,6 +18,7 @@ on:
 # Same-repo PRs get a read/write GITHUB_TOKEN with these scopes.
 # (Fork PRs get a read-only token, so they can't be auto-merged — by design.)
 permissions:
+  actions: write        # needed to dispatch the static.yml deploy after merging
   contents: write
   pull-requests: write
 
@@ -49,3 +56,6 @@ jobs:
 
           echo "Conflict-free — merging with rebase + fast-forward."
           gh pr merge "$PR" --repo "$REPO" --rebase --delete-branch
+
+          echo "Merged — dispatching the Pages deploy (GITHUB_TOKEN merges don't auto-trigger it)."
+          gh workflow run static.yml --repo "$REPO" --ref main
