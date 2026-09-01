@@ -1,5 +1,10 @@
 [
   {
+    "date": "2026-09-07",
+    "file": "2026-09-07.md",
+    "title": "Topic 83：凯利公式（Kelly Criterion）——数学最优仓位的原理，及现实中的「打折使用」"
+  },
+  {
     "date": "2026-09-06",
     "file": "2026-09-06.md",
     "title": "Topic 82：仓位管理（Position Sizing）——每一笔投资应该投多少"
